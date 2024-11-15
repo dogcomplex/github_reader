@@ -25,7 +25,7 @@ MODEL_NAME = 'text-embedding-bge-m3'  # Replace with your model name
 LENGTH_LIMIT = 8000
 
 # Add to top with other settings
-USE_SYMLINKS = True  # Toggle between symlinks (True) and copies (False)
+USE_SYMLINKS = False  # Toggle between symlinks (True) and copies (False)
 
 logging.basicConfig(
     level=logging.INFO,

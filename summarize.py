@@ -19,7 +19,7 @@ class Summarizer:
             "role": "system",
             "content": (
                 f"You are creating a level {level} summary that combines related content. "
-                "Create a concise, single-paragraph summary that captures key themes and relationships."
+                "Create a concise, single-paragraph summary that captures key themes and relationships in plain English."
             )
         }
         
