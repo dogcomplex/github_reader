@@ -5,6 +5,8 @@
 /clusters/*
 /embeddings/*
 /summary_embeddings/*
+/hierarchical_summaries/*
+/embeddings_cache/*
 
 openapi-testing-*.json
 
