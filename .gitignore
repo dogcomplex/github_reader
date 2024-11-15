@@ -1,6 +1,11 @@
 # Project specific
 /readmes/*
 /summaries/*
+/grouped_summaries/*
+/clusters/*
+/embeddings/*
+/summary_embeddings/*
+
 openapi-testing-*.json
 
 # OS generated files
