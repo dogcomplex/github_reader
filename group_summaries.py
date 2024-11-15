@@ -71,6 +71,12 @@ class SummaryGrouper:
             return Path(f"{doc_info.priority:06d}_{doc_info.name}_SUMMARY.md")
         return Path(f"{doc_info.priority:06d}_{doc_info.name}_{level}_SUMMARY.md")
 
+    def get_metadata_path(self, doc_info: DocumentInfo, level: int, metadata_type: str) -> Path:
+        """Get path for metadata file."""
+        if level == 1:
+            return Path(f"{doc_info.priority:06d}_{doc_info.name}_{metadata_type}.md")
+        return Path(f"{doc_info.priority:06d}_{doc_info.name}_{level}_{metadata_type}.md")
+
     def compute_embeddings(
         self,
         documents: Dict[str, DocumentInfo],
