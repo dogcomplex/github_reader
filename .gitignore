@@ -7,6 +7,9 @@
 /summary_embeddings/*
 /hierarchical_summaries/*
 /embeddings_cache/*
+/icon_maker/icons/*
+/icon_maker/icon_output/*
+/icon_maker/test_output/*
 
 openapi-testing-*.json
 
