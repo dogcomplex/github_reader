@@ -196,7 +196,6 @@ FolderType=Generic"""
             # Set attributes in correct order
             os.system(f'attrib +s +h "{target_path}/folder.ico"')
             os.system(f'attrib +s +h "{target_path}/desktop.ini"')
-            os.system(f'attrib +r "{target_path}"')
             
         return True
         
