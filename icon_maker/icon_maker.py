@@ -6,6 +6,9 @@ import io
 import shutil
 import sys
 import ctypes
+import requests
+import json
+from functools import lru_cache
 
 def is_admin():
     """Check if the script is running with admin rights"""
@@ -333,6 +336,141 @@ For macOS:
 - Run: iconutil -c icns fox.iconset -o .VolumeIcon.icns
     """)
 
+def fetch_emoji_metadata():
+    """Fetch and parse emoji metadata from Twemoji"""
+    try:
+        # Use the GitHub API with proper headers
+        headers = {
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'icon-maker-app'
+        }
+        
+        # First, get the latest commit SHA for the master branch
+        base_url = "https://api.github.com/repos/twitter/twemoji"
+        response = requests.get(f"{base_url}/commits/master", headers=headers, timeout=5)
+        response.raise_for_status()
+        sha = response.json()['sha']
+        
+        # Then get the tree using the SHA
+        response = requests.get(
+            f"{base_url}/git/trees/{sha}?recursive=1",
+            headers=headers,
+            timeout=5
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Filter for SVG files in assets/svg
+        emoji_files = [
+            item['path'].split('/')[-1].replace('.svg', '')
+            for item in data['tree']
+            if item['path'].startswith('assets/svg/') and item['path'].endswith('.svg')
+        ]
+        
+        # Map common names to codes with categories
+        name_mappings = {
+            # Animals
+            '1f98a': 'fox',
+            '1f43a': 'wolf',
+            '1f431': 'cat',
+            '1f436': 'dog',
+            '1f984': 'unicorn',
+            '1f985': 'phoenix',
+            '1f98b': 'butterfly',
+            '1f409': 'dragon',
+            '1f40d': 'snake',
+            '1f40e': 'horse',
+            '1f981': 'lion',
+            '1f992': 'giraffe',
+            '1f993': 'zebra',
+            '1f994': 'hedgehog',
+            '1f995': 'sauropod',
+            '1f996': 't-rex',
+            # Plants & Nature
+            '1fab7': 'lotus',
+            '1f339': 'rose',
+            '1f33f': 'herb',
+            '1f340': 'clover',
+            '1f341': 'maple',
+            '1f33a': 'hibiscus',
+            '1f33b': 'sunflower',
+            '1f33c': 'blossom',
+            '1f33e': 'sheaf',
+            # Fantasy & Mythical
+            '1f9da': 'fairy',
+            '1f9db': 'vampire',
+            '1f9df': 'zombie',
+            '1f9de': 'genie',
+            '1f479': 'ogre',
+            '1f47a': 'goblin',
+            '1f47b': 'ghost',
+            '1f47d': 'alien',
+            '1f47e': 'alien-monster',
+            # Tech & Science
+            '1f4bb': 'computer',
+            '1f4f1': 'mobile',
+            '1f4be': 'floppy',
+            '1f5a5': 'desktop',
+            '1f4df': 'pager',
+            '1f4f8': 'camera',
+            '1f4fd': 'projector',
+            '1f50b': 'battery',
+            '1f50c': 'electric-plug',
+            # Symbols & Misc
+            '2764': 'heart',
+            '1f49c': 'purple-heart',
+            '1f49b': 'yellow-heart',
+            '1f49a': 'green-heart',
+            '1f3af': 'target',
+            '1f3c6': 'trophy',
+            '1f451': 'crown',
+            '1f4a1': 'bulb',
+            '1f52e': 'crystal-ball',
+            '1f3f7': 'label'
+        }
+        
+        # Create reverse mapping and filter available emojis
+        emoji_map = {}
+        for code in emoji_files:
+            if code in name_mappings:
+                emoji_map[name_mappings[code]] = code
+        
+        return emoji_map if len(emoji_map) > 10 else None
+            
+    except Exception as e:
+        print(f"Warning: Could not fetch emoji list: {e}")
+        return None
+
+def list_available_emojis():
+    """Display available emojis in a formatted table"""
+    emojis = fetch_emoji_metadata() or {
+        'fox': '1f98a',
+        'lotus': '1fab7',
+        'dragon': '1f409',
+        'wolf': '1f43a',
+        'cat': '1f431',
+        'dog': '1f436',
+        'unicorn': '1f984',
+        'phoenix': '1f985',
+        'butterfly': '1f98b',
+        'rose': '1f339',
+    }
+    
+    print("\nAvailable Emojis:")
+    print("=" * 50)
+    print(f"{'Name':<15} {'Code':<10} {'Symbol':<10}")
+    print("-" * 50)
+    
+    for name, code in sorted(emojis.items()):
+        try:
+            symbol = chr(int(code, 16))
+            print(f"{name:<15} U+{code.upper():<10} {symbol:<10}")
+        except ValueError:
+            print(f"{name:<15} U+{code.upper():<10} {'?':<10}")
+    
+    print("\nUsage: python icon_maker.py --emoji <name>")
+    return emojis
+
 if __name__ == "__main__":
     import argparse
     
@@ -405,6 +543,38 @@ Use with caution and save all work before running.
                        action='store_true',
                        help='Attempt to elevate privileges if needed')
     
+    parser.add_argument('--list',
+                       action='store_true',
+                       help='List all available emoji options')
+    
+    # Parse initial arguments
+    args, remaining = parser.parse_known_args()
+    
+    if args.list:
+        list_available_emojis()
+        sys.exit(0)
+    
+    # Get emoji list for --emoji choices
+    emojis = fetch_emoji_metadata() or {
+        'fox': '1f98a',
+        'lotus': '1fab7',
+        'dragon': '1f409',
+        'wolf': '1f43a',
+        'cat': '1f431',
+        'dog': '1f436',
+        'unicorn': '1f984',
+        'phoenix': '1f985',
+        'butterfly': '1f98b',
+        'rose': '1f339',
+    }
+    
+    # Add emoji argument after getting the list
+    parser.add_argument('--emoji',
+                       choices=list(emojis.keys()),
+                       default='fox',
+                       help='Choose emoji to use as icon (default: fox)')
+    
+    # Parse all arguments again
     args = parser.parse_args()
     
     # Handle elevation if needed
@@ -427,6 +597,7 @@ Use with caution and save all work before running.
                 print("\nTo retry with elevated privileges, use:")
                 print(f"python {sys.argv[0]} --apply \"{args.apply}\" {'--drive' if args.drive else ''} --force")
     else:
-        # Create new icons
-        svg_url = "https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f98a.svg"
+        # Update icon creation to use selected emoji
+        emoji_code = emojis[args.emoji]
+        svg_url = f"https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/{emoji_code}.svg"
         create_all_icons(svg_url)

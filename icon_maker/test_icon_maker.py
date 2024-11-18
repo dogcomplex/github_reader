@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 import shutil
 from PIL import Image
+import subprocess
 
 class TestIconMaker(unittest.TestCase):
     @classmethod
@@ -122,6 +123,28 @@ class TestIconMaker(unittest.TestCase):
                 # Check that images are in RGBA mode
                 self.assertEqual(drive_ico.mode, 'RGBA')
                 self.assertEqual(folder_ico.mode, 'RGBA')
+
+    def test_emoji_fetching(self):
+        """Test that emoji fetching works and returns valid data"""
+        # Run the command and capture output
+        result = subprocess.run(['python', 'icon_maker.py', '--list'], 
+                              capture_output=True, 
+                              text=True)
+        
+        output_text = result.stdout
+        
+        # Check that we got more than just the fallback list
+        self.assertIn('Available Emojis:', output_text)
+        emoji_count = len([line for line in output_text.split('\n') if 'U+' in line])
+        self.assertGreater(emoji_count, 20, "Should fetch more than fallback emojis")
+        
+        # Check for specific categories
+        categories = ['heart', 'computer', 'crown', 'fairy']
+        found_categories = sum(1 for cat in categories if cat in output_text.lower())
+        self.assertGreater(found_categories, 2, "Should include multiple categories")
+        
+        # Check for valid Unicode values
+        self.assertIn('U+1F', output_text, "Should contain valid Unicode points")
 
 if __name__ == '__main__':
     unittest.main() 
