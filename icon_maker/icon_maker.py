@@ -5,6 +5,29 @@ import cairosvg
 import io
 import shutil
 import sys
+import ctypes
+
+def is_admin():
+    """Check if the script is running with admin rights"""
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+def elevate_if_needed():
+    """Re-run the script with admin rights if needed"""
+    if not is_admin():
+        print("Attempting to elevate privileges...")
+        try:
+            args = ' '.join(sys.argv)
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", sys.executable, args, None, 1
+            )
+            sys.exit(0)
+        except Exception as e:
+            print(f"Could not elevate privileges: {e}")
+            return False
+    return True
 
 def refresh_windows_icons():
     """Force Windows to refresh icon cache"""
@@ -65,9 +88,39 @@ def set_drive_attributes(drive_path):
 
 def set_folder_attributes(folder_path):
     """Set attributes for folder icon files"""
-    os.system(f'attrib +s +h "{folder_path}/desktop.ini"')
-    os.system(f'attrib +s +h "{folder_path}/folder.ico"')
-    os.system(f'attrib +r "{folder_path}"')
+    try:
+        # Set attributes for the icon and desktop.ini
+        os.system(f'attrib +s +h "{folder_path}/desktop.ini"')
+        os.system(f'attrib +s +h "{folder_path}/folder.ico"')
+        
+        # Alternative 1: Use System folder type
+        desktop_ini_content = """[.ShellClassInfo]
+IconResource=folder.ico,0
+IconFile=folder.ico
+IconIndex=0
+[ViewState]
+Mode=
+Vid=
+FolderType=System"""
+
+        # Alternative 2: Add more shell class registrations
+        desktop_ini_content_alt = """[.ShellClassInfo]
+IconResource=folder.ico,0
+IconFile=folder.ico
+IconIndex=0
+[{BE098140-A513-11D0-A3A4-00C04FD706EC}]
+IconArea_Image=folder.ico
+[ViewState]
+Mode=
+Vid=
+FolderType=Generic"""
+
+        # Write the enhanced desktop.ini
+        with open(folder_path / 'desktop.ini', 'w', encoding='utf-8') as f:
+            f.write(desktop_ini_content)  # or desktop_ini_content_alt
+            
+    except Exception as e:
+        print(f"Warning: Could not set all folder attributes: {e}")
 
 def safe_remove(path):
     """Safely remove a file by removing system/hidden attributes first"""
@@ -88,75 +141,67 @@ def safe_create_dir(path):
         print(f"Warning: Could not create directory {path}: {e}")
 
 def apply_to_target(output_dir, target_path, is_drive=False):
-    """Copy files and set attributes for target path"""
-    source_dir = output_dir / ('drive' if is_drive else 'folder')
-    target_path = Path(target_path)
-    
-    # Check if source directory exists
-    if not source_dir.exists():
-        print(f"Error: Source directory '{source_dir}' not found. Run script without --apply first.")
-        return False
-    
-    print(f"\nApplying icons to: {target_path}")
-    
-    # Handle drive paths specially on Windows
-    if is_drive and os.name == 'nt':
-        # Convert G: to G:\ format
-        target_path = Path(f"{str(target_path.drive)}\\")
-    
-    # Remove existing files first
-    if is_drive:
-        safe_remove(target_path / '.VolumeIcon.ico')
-        safe_remove(target_path / 'autorun.inf')
-    else:
-        safe_remove(target_path / 'folder.ico')
-        safe_remove(target_path / 'desktop.ini')
-    
+    """Apply icons to target location"""
     try:
-        # Copy files and verify
-        for file in os.listdir(source_dir):
-            src_file = source_dir / file
-            dst_file = target_path / file
-            shutil.copy2(src_file, dst_file)
-            if not dst_file.exists():
-                print(f"Warning: Failed to copy {file}")
-            else:
-                print(f"Copied: {file}")
+        target_path = Path(target_path)
         
-        # Set attributes
+        # Check if we need admin rights
+        needs_admin = False
+        try:
+            test_file = target_path / '.test_write'
+            test_file.touch()
+            test_file.unlink()
+        except PermissionError:
+            needs_admin = True
+        
+        if needs_admin and not is_admin():
+            print("\nThis operation requires administrator privileges.")
+            print("Please run the script as administrator or use the --force option to attempt elevation.")
+            return False
+            
+        # Remove existing files first
         if is_drive:
-            # Update autorun.inf content for drive
-            autorun_content = f"""[autorun]
-icon=.VolumeIcon.ico
-label={target_path.drive}
-action=Open folder to view files
-shell\\open=Open folder to view files
-shell\\open\\command=explorer.exe
-UseAutoPlay=1"""
-            
-            try:
-                with open(target_path / 'autorun.inf', 'w', encoding='utf-8') as f:
-                    f.write(autorun_content)
-            except Exception as e:
-                print(f"Warning: Could not write autorun.inf: {e}")
-                
-            set_drive_attributes(target_path)
-            
-            print("\nDrive icon applied! Please:")
-            print("1. Run: python icon_maker.py --refresh")
-            print("2. Disconnect and reconnect the drive")
-            print("3. If still not working, try:")
-            print("   - Run script as administrator")
-            print("   - Check if drive is NTFS formatted")
-            print("   - Verify Group Policy allows AutoRun")
+            safe_remove(target_path / '.VolumeIcon.ico')
+            safe_remove(target_path / 'autorun.inf')
         else:
-            set_folder_attributes(target_path)
+            safe_remove(target_path / 'folder.ico')
+            safe_remove(target_path / 'desktop.ini')
         
+        # Copy new files
+        if is_drive:
+            shutil.copy2(output_dir / 'drive' / '.VolumeIcon.ico', target_path)
+            shutil.copy2(output_dir / 'drive' / 'autorun.inf', target_path)
+            set_drive_attributes(target_path)
+        else:
+            # Copy icon file first
+            shutil.copy2(output_dir / 'folder' / 'folder.ico', target_path)
+            
+            # Create desktop.ini with correct path
+            desktop_ini_content = """[.ShellClassInfo]
+IconResource=folder.ico,0
+IconFile=folder.ico
+IconIndex=0
+[ViewState]
+Mode=
+Vid=
+FolderType=Generic"""
+            
+            # Write desktop.ini directly to target
+            with open(target_path / 'desktop.ini', 'w', encoding='utf-8') as f:
+                f.write(desktop_ini_content)
+            
+            # Set attributes in correct order
+            os.system(f'attrib +s +h "{target_path}/folder.ico"')
+            os.system(f'attrib +s +h "{target_path}/desktop.ini"')
+            os.system(f'attrib +r "{target_path}"')
+            
         return True
         
     except Exception as e:
         print(f"Error applying icons: {e}")
         return False
+        
+    # Rest of the function remains the same...
 
 def create_all_icons(svg_url, target_path=None, is_drive=False):
     # Create output directory
@@ -356,12 +401,21 @@ Use with caution and save all work before running.
                        action='store_true',
                        help='Force refresh Windows icon cache (may require admin rights)')
     
+    parser.add_argument('--force', 
+                       action='store_true',
+                       help='Attempt to elevate privileges if needed')
+    
     args = parser.parse_args()
+    
+    # Handle elevation if needed
+    if args.force and any([args.apply, args.refresh]):
+        if not elevate_if_needed():
+            print("Could not get required permissions. Try running as administrator.")
+            sys.exit(1)
     
     if args.refresh:
         refresh_windows_icons()
     elif args.apply:
-        # Apply existing icons to new location
         output_dir = Path('icon_output')
         if not output_dir.exists():
             print("Error: icon_output directory not found. Run script without --apply first.")
@@ -369,6 +423,9 @@ Use with caution and save all work before running.
             success = apply_to_target(output_dir, args.apply, args.drive)
             if success:
                 print(f"Icons applied to: {args.apply}")
+            else:
+                print("\nTo retry with elevated privileges, use:")
+                print(f"python {sys.argv[0]} --apply \"{args.apply}\" {'--drive' if args.drive else ''} --force")
     else:
         # Create new icons
         svg_url = "https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f98a.svg"
