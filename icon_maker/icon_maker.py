@@ -206,7 +206,23 @@ FolderType=Generic"""
         
     # Rest of the function remains the same...
 
-def create_all_icons(svg_url, target_path=None, is_drive=False):
+def convert_image_to_png(image_path):
+    """Convert any supported image to PNG format in memory"""
+    try:
+        with Image.open(image_path) as img:
+            # Convert to RGBA if needed
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            
+            # Create in-memory PNG
+            png_buffer = io.BytesIO()
+            img.save(png_buffer, format='PNG')
+            return png_buffer.getvalue()
+    except Exception as e:
+        raise ValueError(f"Could not process image: {e}")
+
+def create_all_icons(source, target_path=None, is_drive=False):
+    """Modified to handle both URLs and local files"""
     # Create output directory
     output_dir = Path('icon_output')
     safe_create_dir(output_dir)
@@ -224,8 +240,13 @@ def create_all_icons(svg_url, target_path=None, is_drive=False):
             safe_remove(dir_path / 'folder.ico')
             safe_remove(dir_path / 'desktop.ini')
     
-    # Convert SVG to PNG in memory
-    png_data = cairosvg.svg2png(url=svg_url, output_width=1024, output_height=1024)
+    # Handle source based on type
+    if isinstance(source, str) and (source.startswith('http://') or source.startswith('https://')):
+        # Existing SVG URL handling
+        png_data = cairosvg.svg2png(url=source, output_width=1024, output_height=1024)
+    else:
+        # Local file handling
+        png_data = convert_image_to_png(source)
     
     # Open the PNG data
     img = Image.open(io.BytesIO(png_data))
@@ -479,6 +500,10 @@ Use with caution and save all work before running.
                        action='store_true',
                        help='List all available emoji options')
     
+    parser.add_argument('--image',
+                       metavar='PATH',
+                       help='Use local image file (PNG, JPEG, WEBP, etc.) as icon source')
+    
     # Parse initial arguments
     args, remaining = parser.parse_known_args()
     
@@ -532,11 +557,12 @@ Use with caution and save all work before running.
                 print("\nTo retry with elevated privileges, use:")
                 print(f"python {sys.argv[0]} --apply \"{args.apply}\" {'--drive' if args.drive else ''} --force")
     else:
-        # Update emoji code lookup to handle direct codes
-        if args.emoji:
+        if args.image:
+            create_all_icons(args.image)
+        elif args.emoji:
+            # Existing emoji handling
             emoji_code = args.emoji.lower()
             if emoji_code not in emojis:
-                # Try to normalize the input code
                 emoji_code = emoji_code.replace('u+', '').replace('0x', '')
             else:
                 emoji_code = emojis[emoji_code]
