@@ -1,0 +1,97 @@
+
+
+The order of operations needs to reflect certain dependencies:
+
+===== meta notes:
+- all <priority> tags are 6 digits left padded with 0s
+- filename logic is config
+- hash: True (create a hash of the params + configs + file (or folder) contents, include 8 digits in filename <hash8>
+- all of these are basically just FUNCTION + CONFIG pairs most generally  (or just a FUNCTION with CONFIG baked into it)
+- defaults are a CONFIG.  a particular execution is a CONFIG (default CONFIG + execution input changes)
+
+===================== Meta types:
+
+FUNCTION: A (python) function which executes a CONFIG to produce outputs (may use subfunctions).  General purpose
+	- (config) dependencies: none (standalone)
+	- (config) filename: <function_name>_<hash8>_FUNCTION.py
+	- (config) dir: functions
+
+CONFIG: A config file to execute a metadata type.  Includes params/inputs as config values
+	- (config) dependencies: none (standalone)
+	- (config) filename: <metadata_name>_<hash8>_CONFIG.json
+	- (config) dir: configs
+
+FILENAME_FUNCTION: A function which defines how to generate a filename string
+	- (config) dependencies: none (standalone)
+	- (config) filename: <metadata_name>_<hash8>_FILENAME_FUNCTION.py
+	- (config) dir: filename_function
+
+======================
+
+GIT_QUERY: A search query for github (particular subset of FUNCTION) 
+	- (from CONFIG) priority_score: stars / forks / stars+forks / none (mode of calculating priority)
+	- (from CONFIG) append_timestamp: True/False of query execution time
+	- (config) dependencies: CONFIG
+	- (config) filename: <config_hash8>_<hash8>_GIT_QUERY.txt
+	- (config) dir: git_queries
+
+GIT_LINK: Link to a github
+	- (optional input) priority_score: stars / forks / stars+forks / none (mode of calculating priority)
+	- (config) dependencies: GIT_QUERY
+	- (config) filename: <priority>_<repo_user>_<repo_name>_<hash8>_GIT_LINK.txt
+	- (config) dir: git_links
+
+GIT_REPO: Downloaded full repo of a github
+	- (optional) max_size = 100mb: upper limit on size where we prioritize downloading the smallest files in the highest repo level.  
+	- (optional) zip = False: zip the folder as .zip
+	- (config) dependencies: GIT_LINK
+	- (config) foldername: <priority>_<repo_user>_<repo_name>_<hash8>_GIT_REPO/
+	- (config) dir: git_repos
+
+README: The readme extracted out of a github
+	- (optional) search_areas = [...all]: the different files and subdirs to check for a readme file, in order of search
+	- (optional) include_all = False: True/False to make multiple copies (append <found_in> area). else just short circuit on first find
+	- ... any other
+	- (config) dependencies: GIT_LINK or GIT_REPO (two different functions)
+		- could also do e.g. DOC to README, or DOC_CHUNKs to README functions
+	- (config) filename: <priority>_<repo_user>_<repo_name>_<hash8>_README.md
+	- (config) dir: readmes
+
+******DOC (new metadata type):  The DOC type should be the raw trivial input (currently readmes).  Basically a generalist wrapper of various docs that merely standardizes to .txt
+	- (config) dependencies: <any string or text types>
+	- (config) filename: <priority>_<name/identifier>_<hash8>_DOC.txt
+	- (config) dir: docs
+
+******DOC_CHUNK:   CHUNK can use the raw DOCUMENT inputs (this maybe should be a metadata type by itself, even if trivial) and produce equivalent 1-or-more CHUNK files.  (Note: the naming is wrong for CHUNK files, they should use the same <priority>_<name> prefix before the _<XofM>_CHUNK.md postfix stuff.  This <priority>_<name> prefix should be universal across all metadata types).  Producing each CHUNK shouldn't require an LLM yet.  If a chunk is just 1of1, drop the "1of1" naming and just use _CHUNK.md
+	- (config) dependencies: DOC
+	- (config) filename: <priority>_<name/identifier>_<KofN>_<hash8>_DOC_CHUNK.txt
+	- (config) dir: doc_chunks
+
+LANGUAGE:  The detected language in a doc (just its name), calculated using a language recognition library
+	- (config) dependencies: DOC
+	- (config) filename: <doc_hash8>_LANGUAGE.txt
+	- (config) dir: languages
+
+...TODO?:
+
+TRANSLATION:  If a CHUNK's matching LANGUAGE metadata says it is non-english, it can be escaped and run through an LLM to be translated to English.  Cache this using the same basic scheme <priority>_<name including chunk XofN>_TRANSLATION.md  this will be trivial for english files (just copy those)
+
+SUMMARY:  Now, each CHUNK file can produce a SUMMARY.  An LLM is needed for each one
+
+TAG: similarly, each CHUNK file can produce a set of TAGs.
+
+CHUNK_GROUP: (new metadata type):  organizes 
+
+GROUP_SUMMARY: (new metadata type): looks for matching prefixes in "XofN" format and combines them back together.  It has multiple settings, but by default it concatenates the files together and performs the same metadata type operation on them again.  so if files are <prefix>_SUMMARY.md they go through the SUMMARY metadata type again concatenated together, with a new filename dropping the <XofN> part.  
+
+Each group of multipart SUMMARY files on CHUNKs of the same data (i.e. matching <priority>_<name>_<1of3>_SUMMARY.md can produce a COMBINED_SUMMARY (replace the SPLIT_SUMMARY logic with this, now that CHUNK is the underlying mechanic).  This is trivial with singular SUMMARY files, but could poll an LLM to make the COMBINED_SUMMARY of multipart summaries.
+
+Similarly, CHUNK files can produce TAGS
+
+and multiple TAGS of the same name can produce COMBINED_TAGS.  Trivial with singular TAG files but could poll an LLM for multipart
+
+Same pattern for REPORT
+
+
+
+... IMG stuff too!

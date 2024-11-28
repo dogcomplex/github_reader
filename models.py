@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 
 class MetadataScope(Enum):
     SINGLE = "single"
@@ -17,10 +17,22 @@ class MetadataConfig:
     processor: Optional[Callable] = None
     system_prompt_template: Optional[str] = None
     user_prompt_template: Optional[str] = None
-    requires_embedding: bool = False
     output_directory: str = ""
     group_size: Optional[int] = None
     split_strategy: str = "default"
+    enable: bool = True
+    override: bool = False
+    dependencies: List[str] = field(default_factory=list)
+    max_chars: int = 30000
+    cache_strategy: str = "file"
+    input_type: str = "text"
+    output_type: str = "text"
+    parallel: bool = True
+    retry_count: int = 3
+    # Add new chunking parameters
+    chunk_size: Optional[int] = None
+    chunk_overlap: int = 1000
+    merge_strategy: str = "concat"
     
     def get_output_path(
         self,

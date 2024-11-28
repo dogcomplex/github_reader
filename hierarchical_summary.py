@@ -54,6 +54,7 @@ class HierarchicalSummarizer:
                 if name.endswith("_README"):
                     name = name[:-7]  # Remove _README suffix
                 
+                # Add UTF-8 encoding
                 content = path.read_text(encoding='utf-8')
                 documents[path.stem] = DocumentInfo(priority, name, content)
             except Exception as e:
