@@ -1,62 +1,53 @@
-# Project specific
-/readmes/*
-/summaries/*
-/grouped_summaries/*
-/clusters/*
-/embeddings/*
-/summary_embeddings/*
-/hierarchical_summaries/*
-/embeddings_cache/*
-/icon_maker/icons/*
-/icon_maker/icon_output/*
-/icon_maker/test_output/*
-/old/*
-
-openapi-testing-*.json
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# IDE and Editor files
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# Dependencies and build artifacts
-/node_modules/
-/dist/
-/build/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Environment files
-.env
-.env.local
-.env.*.local
-.env.development
-.env.test
-.env.production
-
-# Cache and temporary files
-*.cache
-.temp
-.tmp
-.sass-cache/
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.dist/
+.build/
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
-# System files
-*.bak
-*.tmp
-*.temp
+# Environments
+.venv/
+venv/
+env/
+.env
+.env.*
+*.env
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Project data and artifacts
+readmes/
+summaries/
+old/
+*.npy
+*.npz
+*.zip
+*.rar
+*.tar
+*.tar.gz
+*.log
+.cache/
+/tmp/
+
+# Credentials/secrets (general patterns)
+*service_account*.json
+*credentials*.json
+*key*.json
+openapi-*.json
+*.pem
+*.key
+
+# Node leftovers (from WIP example)
+node_modules/
+package-lock.json
